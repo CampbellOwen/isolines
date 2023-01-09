@@ -13,8 +13,8 @@ pub struct Line {
 }
 #[derive(Debug, Clone)]
 pub struct Path {
-    points: Vec<Point>,
-    closed: bool,
+    pub points: Vec<Point>,
+    pub closed: bool,
 }
 impl Path {
     pub fn start(&self) -> Point {
