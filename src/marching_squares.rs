@@ -1,4 +1,4 @@
-use crate::util::*;
+use crate::{paths_from_lines, util::*};
 
 #[derive(Debug)]
 pub struct Cell {
@@ -49,6 +49,32 @@ impl Field {
         let segment = cell_segment(threshold, pos, id, &vals);
 
         Cell { pos, id, segment }
+    }
+
+    pub fn raw_lines(&self, threshold: f32) -> Vec<Line> {
+        let mut lines = Vec::new();
+        for y in 0..(self.extent.1 - 1) {
+            for x in 0..(self.extent.0 - 1) {
+                let cell = self.cell_at(threshold, (x, y));
+                match cell.segment {
+                    CellSegment::Zero => (),
+                    CellSegment::One(line) => {
+                        lines.push(line);
+                    }
+                    CellSegment::Two(line1, line2) => {
+                        lines.push(line1);
+                        lines.push(line2);
+                    }
+                };
+            }
+        }
+
+        lines
+    }
+
+    pub fn layer_paths(&self, threshold: f32) -> Vec<Path> {
+        let lines = self.raw_lines(threshold);
+        paths_from_lines(&lines)
     }
 }
 
