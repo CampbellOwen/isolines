@@ -9,10 +9,16 @@ pub struct Cell {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct CellLine {
+    pub interpolated_line: Line,
+    pub raw_line: Line,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum CellSegment {
     Zero,
-    One(Line),
-    Two(Line, Line),
+    One(CellLine),
+    Two(CellLine, CellLine),
 }
 
 #[derive(Debug)]
@@ -51,7 +57,7 @@ impl Field {
         Cell { pos, id, segment }
     }
 
-    pub fn raw_lines(&self, threshold: f32) -> Vec<Line> {
+    pub fn raw_lines(&self, threshold: f32) -> Vec<CellLine> {
         let mut lines = Vec::new();
         for y in 0..(self.extent.1 - 1) {
             for x in 0..(self.extent.0 - 1) {
@@ -95,6 +101,23 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
         0b0001 | 0b1110 => {
             let bottom_t = (threshold - bottom_left) / (bottom_right - bottom_left);
             let right_t = (threshold - top_right) / (bottom_right - top_right);
+            let a = Point {
+                x: x as f32 + (bottom_t),
+                y: y as f32 + 1.0,
+            };
+            let b = Point {
+                x: x as f32 + 1.0,
+                y: y as f32 + (1.0 * right_t),
+            };
+
+            let interpolated_line = if id == 0b0001 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+
+            let bottom_t = 0.5;
+            let right_t = 0.5;
 
             let a = Point {
                 x: x as f32 + (bottom_t),
@@ -105,11 +128,16 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 y: y as f32 + (1.0 * right_t),
             };
 
-            if id == 0b0001 {
-                CellSegment::One(Line { start: a, end: b })
+            let raw_line = if id == 0b0001 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         0b0010 | 0b1101 => {
             let left_t = (threshold - top_left) / (bottom_left - top_left);
@@ -123,11 +151,32 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 y: y as f32 + 1.0,
             };
 
-            if id == 0b0010 {
-                CellSegment::One(Line { start: a, end: b })
+            let interpolated_line = if id == 0b0010 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            let bottom_t = 0.5;
+            let left_t = 0.5;
+            let a = Point {
+                x: x as f32,
+                y: y as f32 + left_t,
+            };
+            let b = Point {
+                x: x as f32 + bottom_t,
+                y: y as f32 + 1.0,
+            };
+
+            let raw_line = if id == 0b0010 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         0b0011 | 0b1100 => {
             let left_t = (threshold - top_left) / (bottom_left - top_left);
@@ -140,11 +189,32 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 x: x as f32 + 1.0,
                 y: y as f32 + right_t,
             };
-            if id == 0b0011 {
-                CellSegment::One(Line { start: a, end: b })
+            let interpolated_line = if id == 0b0011 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            let right_t = 0.5;
+            let left_t = 0.5;
+            let a = Point {
+                x: x as f32,
+                y: y as f32 + left_t,
+            };
+            let b = Point {
+                x: x as f32 + 1.0,
+                y: y as f32 + right_t,
+            };
+            let raw_line = if id == 0b0011 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         0b0100 | 0b1011 => {
             let right_t = (threshold - top_right) / (bottom_right - top_right);
@@ -157,11 +227,33 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 x: x as f32 + top_t,
                 y: y as f32,
             };
-            if id == 0b0100 {
-                CellSegment::One(Line { start: a, end: b })
+            let interpolated_line = if id == 0b0100 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            let right_t = 0.5;
+            let top_t = 0.5;
+
+            let a = Point {
+                x: x as f32 + 1.0,
+                y: y as f32 + right_t,
+            };
+            let b = Point {
+                x: x as f32 + top_t,
+                y: y as f32,
+            };
+            let raw_line = if id == 0b0100 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         0b0101 | 0b1010 => {
             let top_t = (threshold - top_left) / (top_right - top_left);
@@ -174,11 +266,32 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 x: x as f32 + top_t,
                 y: y as f32,
             };
-            if id == 0b0101 {
-                CellSegment::One(Line { start: a, end: b })
+            let interpolated_line = if id == 0b0101 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            let bottom_t = 0.5;
+            let top_t = 0.5;
+
+            let a = Point {
+                x: x as f32 + bottom_t,
+                y: y as f32 + 1.0,
+            };
+            let b = Point {
+                x: x as f32 + top_t,
+                y: y as f32,
+            };
+            let raw_line = if id == 0b0101 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         0b0110 => {
             let top_t = (threshold - top_left) / (top_right - top_left);
@@ -208,7 +321,34 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                     y: y as f32 + 1.0,
                 };
                 let second = Line { start: a, end: b };
-                CellSegment::Two(first, second)
+                CellSegment::Two(
+                    CellLine {
+                        interpolated_line: first,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32,
+                                y: y as f32 + 0.5,
+                            },
+                            end: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32,
+                            },
+                        },
+                    },
+                    CellLine {
+                        interpolated_line: second,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 1.0,
+                                y: y as f32 + 0.5,
+                            },
+                            end: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32 + 1.0,
+                            },
+                        },
+                    },
+                )
             } else {
                 let a = Point {
                     x: x as f32 + 1.0,
@@ -229,7 +369,34 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                     y: y as f32 + 1.0,
                 };
                 let second = Line { start: a, end: b };
-                CellSegment::Two(first, second)
+                CellSegment::Two(
+                    CellLine {
+                        interpolated_line: first,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 1.0,
+                                y: y as f32 + 0.5,
+                            },
+                            end: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32,
+                            },
+                        },
+                    },
+                    CellLine {
+                        interpolated_line: second,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32,
+                                y: y as f32 + 0.5,
+                            },
+                            end: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32 + 1.0,
+                            },
+                        },
+                    },
+                )
             }
         }
         0b1001 => {
@@ -260,7 +427,34 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                     y: y as f32 + right_t,
                 };
                 let second = Line { start: a, end: b };
-                CellSegment::Two(first, second)
+                CellSegment::Two(
+                    CellLine {
+                        interpolated_line: first,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32 + 1.0,
+                            },
+                            end: Point {
+                                x: x as f32,
+                                y: y as f32 + 0.5,
+                            },
+                        },
+                    },
+                    CellLine {
+                        interpolated_line: second,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32,
+                            },
+                            end: Point {
+                                x: x as f32 + 1.0,
+                                y: y as f32 + 0.5,
+                            },
+                        },
+                    },
+                )
             } else {
                 let a = Point {
                     x: x as f32 + bottom_t,
@@ -281,13 +475,39 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                     y: y as f32 + left_t,
                 };
                 let second = Line { start: a, end: b };
-                CellSegment::Two(first, second)
+                CellSegment::Two(
+                    CellLine {
+                        interpolated_line: first,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32 + 1.0,
+                            },
+                            end: Point {
+                                x: x as f32 + 1.0,
+                                y: y as f32 + 0.5,
+                            },
+                        },
+                    },
+                    CellLine {
+                        interpolated_line: second,
+                        raw_line: Line {
+                            start: Point {
+                                x: x as f32 + 0.5,
+                                y: y as f32,
+                            },
+                            end: Point {
+                                x: x as f32,
+                                y: y as f32 + 0.5,
+                            },
+                        },
+                    },
+                )
             }
         }
         0b0111 | 0b1000 => {
             let left_t = (threshold - top_left) / (bottom_left - top_left);
             let top_t = (threshold - top_left) / (top_right - top_left);
-
             let a = Point {
                 x: x as f32,
                 y: y as f32 + left_t,
@@ -297,11 +517,32 @@ fn cell_segment(threshold: f32, pos: (u32, u32), id: u8, vals: &[f32; 4]) -> Cel
                 y: y as f32,
             };
 
-            if id == 0b0111 {
-                CellSegment::One(Line { start: a, end: b })
+            let interpolated_line = if id == 0b0111 {
+                Line { start: a, end: b }
             } else {
-                CellSegment::One(Line { start: b, end: a })
-            }
+                Line { start: b, end: a }
+            };
+
+            let top_t = 0.5;
+            let left_t = 0.5;
+            let a = Point {
+                x: x as f32,
+                y: y as f32 + left_t,
+            };
+            let b = Point {
+                x: x as f32 + top_t,
+                y: y as f32,
+            };
+
+            let raw_line = if id == 0b0111 {
+                Line { start: a, end: b }
+            } else {
+                Line { start: b, end: a }
+            };
+            CellSegment::One(CellLine {
+                interpolated_line,
+                raw_line,
+            })
         }
         _ => panic!("Invalid id"),
     }
