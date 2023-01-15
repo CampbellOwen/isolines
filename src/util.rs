@@ -50,11 +50,41 @@ impl Path {
                     .map(|p| format!("{} {}", p.x + 0.5, p.y + 0.5)),
                 " L ",
             ))
-            + if self.start() == self.end() { " Z" } else { "" }
+            + if self.closed { " Z" } else { "" }
     }
 }
 
-pub fn paths_from_lines(lines: &[CellLine]) -> Vec<Path> {
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Edge {
+    Left,
+    Top,
+    Right,
+    Bottom,
+}
+
+fn on_edge(point: &RichPoint, extents: (u32, u32)) -> Option<Edge> {
+    let (width, height) = extents;
+    let Point { x, y } = point.raw_point;
+    if x <= 0.5 {
+        return Some(Edge::Left);
+    }
+    if y <= 0.5 {
+        return Some(Edge::Top);
+    }
+    if x >= (extents.0 as f32 - 1.0) {
+        return Some(Edge::Right);
+    }
+    if y >= (extents.1 as f32 - 1.0) {
+        return Some(Edge::Bottom);
+    }
+    None
+}
+
+pub enum CloseEdges {
+    None,
+    ForExtent(u32, u32),
+}
+pub fn paths_from_lines(lines: &[CellLine], close_edges: CloseEdges) -> Vec<Path> {
     let mut paths: Vec<Path> = Vec::new();
 
     for cell_line in lines {
@@ -125,6 +155,116 @@ pub fn paths_from_lines(lines: &[CellLine]) -> Vec<Path> {
                 points: vec![line_start, line_end],
                 closed: false,
             })
+        }
+    }
+
+    if let CloseEdges::ForExtent(width, height) = close_edges {
+        for open_path in paths.iter_mut().filter(|p| !p.closed) {
+            let begin_edge = on_edge(&open_path.start(), (width, height));
+            let end_edge = on_edge(&open_path.end(), (width, height));
+            if begin_edge.is_none() || end_edge.is_none() {
+                continue;
+            }
+            let begin_edge = begin_edge.unwrap();
+            let end_edge = end_edge.unwrap();
+
+            let top_left = RichPoint {
+                raw_point: Point { x: 0.0, y: 0.0 },
+                interpolated_point: Point { x: 0.0, y: 0.0 },
+            };
+            let top_right = RichPoint {
+                raw_point: Point {
+                    x: width as f32 - 0.5,
+                    y: 0.0,
+                },
+                interpolated_point: Point {
+                    x: width as f32 - 0.5,
+                    y: 0.0,
+                },
+            };
+            let bottom_left = RichPoint {
+                raw_point: Point {
+                    x: 0.0,
+                    y: height as f32 - 0.5,
+                },
+                interpolated_point: Point {
+                    x: 0.0,
+                    y: height as f32 - 0.5,
+                },
+            };
+            let bottom_right = RichPoint {
+                raw_point: Point {
+                    x: width as f32 - 0.5,
+                    y: height as f32 - 0.5,
+                },
+                interpolated_point: Point {
+                    x: width as f32 - 0.5,
+                    y: height as f32 - 0.5,
+                },
+            };
+
+            match (begin_edge, end_edge) {
+                (Edge::Left, Edge::Left) => open_path.closed = true,
+                (Edge::Left, Edge::Top) => {
+                    open_path.points.push(top_right.clone());
+                    open_path.points.push(bottom_right.clone());
+                    open_path.points.push(bottom_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Left, Edge::Right) => {
+                    open_path.points.push(bottom_right.clone());
+                    open_path.points.push(bottom_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Left, Edge::Bottom) => {
+                    open_path.points.push(bottom_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Top, Edge::Left) => {
+                    open_path.points.push(top_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Top, Edge::Top) => open_path.closed = true,
+                (Edge::Top, Edge::Right) => {
+                    open_path.points.push(top_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Top, Edge::Bottom) => {
+                    open_path.points.push(bottom_left.clone());
+                    open_path.points.push(top_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Right, Edge::Left) => {
+                    open_path.points.push(top_left.clone());
+                    open_path.points.push(top_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Right, Edge::Top) => {
+                    open_path.points.push(top_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Right, Edge::Right) => open_path.closed = true,
+                (Edge::Right, Edge::Bottom) => {
+                    open_path.points.push(bottom_left.clone());
+                    open_path.points.push(top_left.clone());
+                    open_path.points.push(top_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Bottom, Edge::Left) => {
+                    open_path.points.push(bottom_left.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Bottom, Edge::Top) => {
+                    open_path.points.push(top_right.clone());
+                    open_path.points.push(bottom_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Bottom, Edge::Right) => {
+                    open_path.points.push(bottom_right.clone());
+                    open_path.closed = true;
+                }
+                (Edge::Bottom, Edge::Bottom) => open_path.closed = true,
+            };
         }
     }
 

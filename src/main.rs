@@ -44,12 +44,12 @@ fn main() {
         .unwrap()
         .to_owned();
 
-    let num_lines = 15;
+    let num_lines = palette.len();
     let step = (highest as usize) / num_lines;
     for (i, threshold) in (0..highest as usize).step_by(step).enumerate() {
         let colour = palette[(palette.len() - 1) - (i % palette.len())];
         println!("<g stroke=\"{colour}\" stroke-width=\"1\" fill=\"none\" >");
-        let paths = field.layer_paths(threshold as f32);
+        let paths = field.layer_paths(threshold as f32, true);
         for path in paths.iter().filter(|p| p.points.len() > 2) {
             let fill = if path.closed { colour } else { "none" };
             println!("<path fill=\"{fill}\" d=\"{}\" />", path.to_svg(true));

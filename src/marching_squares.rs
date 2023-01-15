@@ -78,9 +78,16 @@ impl Field {
         lines
     }
 
-    pub fn layer_paths(&self, threshold: f32) -> Vec<Path> {
+    pub fn layer_paths(&self, threshold: f32, close_edges: bool) -> Vec<Path> {
         let lines = self.raw_lines(threshold);
-        paths_from_lines(&lines)
+        paths_from_lines(
+            &lines,
+            if close_edges {
+                CloseEdges::ForExtent(self.extent.0, self.extent.1)
+            } else {
+                CloseEdges::None
+            },
+        )
     }
 }
 
